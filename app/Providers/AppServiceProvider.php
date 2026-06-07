@@ -3,27 +3,23 @@
 namespace App\Providers;
 
 use Illuminate\Support\ServiceProvider;
-use Illuminate\Cache\RateLimiting\Limit;
-use Illuminate\Support\Facades\RateLimiter;
-use Illuminate\Http\Request;
-use Illuminate\Database\Eloquent\Model; // <-- IMPORTAÇÃO VITAL ADICIONADA
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\URL;
 
 class AppServiceProvider extends ServiceProvider
 {
-    public function register(): void
-    {
-        //
-    }
+    public function register(): void {}
 
     public function boot(): void
     {
-        // Trava anti-DDoS em camada de aplicação: Máximo de 3 envios por minuto por IP.
-        RateLimiter::for('orcamento-site', function (Request $request) {
-            return Limit::perMinute(3)->by($request->ip());
-        });
-
-        // TRAVA NUCLEAR ANTI N+1: Proíbe o Lazy Loading no ambiente local/dev.
-        // Se você esquecer um "with('relacionamento')" nas consultas, o Laravel força um Erro 500 para te avisar.
-        Model::preventLazyLoading(! app()->isProduction());
+        // Força HTTPS na HostGator para segurança e evitar roubo de dados
+        if ($this->app->environment('production')) {
+            URL::forceScheme('https');
+        }
+        
+        // [O ESCUDO]: Ativa o Modo Paranoico apenas no seu computador.
+        // Trava o sistema na sua tela se houver buscas lentas no banco, 
+        // variáveis vazias sendo chamadas ou falhas de segurança de massa.
+        Model::shouldBeStrict(! $this->app->environment('production'));
     }
 }

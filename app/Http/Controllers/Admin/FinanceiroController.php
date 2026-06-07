@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Lancamento;
+use Illuminate\Http\Request;
 
 class FinanceiroController extends Controller
 {
@@ -52,5 +53,28 @@ class FinanceiroController extends Controller
     {
         // O Gráfico do Fluxo de Caixa já vive de forma macro na tela inicial do Cockpit!
         return redirect()->route('dashboard');
+    }
+
+    /**
+     * SALVA UM NOVO LANÇAMENTO MANUAL (RECEITA OU DESPESA)
+     */
+    public function store(Request $request)
+    {
+        $validated = $request->validate([
+            'descricao'       => 'required|string|max:255',
+            'tipo'            => 'required|in:receita,despesa',
+            'valor'           => 'required|numeric|min:0',
+            'data_vencimento' => 'required|date',
+            'status'          => 'required|in:pendente,pago,atrasado',
+        ]);
+
+        // Se for marcado como pago na criação, já preenche a data de pagamento
+        if ($validated['status'] === 'pago') {
+            $validated['data_pagamento'] = now()->toDateString();
+        }
+
+        Lancamento::create($validated);
+
+        return back()->with('success', 'Lançamento financeiro registrado com sucesso!');
     }
 }

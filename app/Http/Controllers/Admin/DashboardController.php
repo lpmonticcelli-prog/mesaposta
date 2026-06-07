@@ -61,8 +61,10 @@ class DashboardController extends Controller
             $meses[] = mb_strtoupper($dataRef->translatedFormat('M/y'));
             
             if ($dadosAgrupados->has($chave)) {
-                $receitasGrafico[] = (float) $dadosAgrupados[$chave]->receita;
-                $despesasGrafico[] = (float) $dadosAgrupados[$chave]->despesa;
+                $agrupamento = $dadosAgrupados[$chave]->toArray();
+                
+                $receitasGrafico[] = (float) ($agrupamento['receita'] ?? 0);
+                $despesasGrafico[] = (float) ($agrupamento['despesa'] ?? 0);
             } else {
                 $receitasGrafico[] = 0.0;
                 $despesasGrafico[] = 0.0;

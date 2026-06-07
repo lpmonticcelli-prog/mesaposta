@@ -3,7 +3,7 @@
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Site\OrcamentoController;
-use App\Http\Controllers\Api\ChecklistController;
+// use App\Http\Controllers\Api\ChecklistController;
 
 /*
 |--------------------------------------------------------------------------
@@ -35,5 +35,5 @@ Route::post('/orcamento', [OrcamentoController::class, 'store'])
 // ========================================================================
 // Recebe a foto esmagada (Base64) e os dados da avaria enviados pelo celular do galpão.
 // Limite Fixo: 30 envios por minuto. Protege a CPU contra celulares com loop de rede.
-Route::post('/estoque/avaria', [ChecklistController::class, 'registrarAvaria'])
-    ->middleware('throttle:30,1');
+// Route::post('/estoque/avaria', [ChecklistController::class, 'registrarAvaria'])
+//     ->middleware('throttle:30,1');

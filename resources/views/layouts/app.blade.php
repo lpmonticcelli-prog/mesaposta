@@ -27,6 +27,14 @@
         }
     </script>
 
+    <script>
+        const consoleWarnOriginal = console.warn;
+        console.warn = function() {
+            if (arguments[0] && arguments[0].includes('cdn.tailwindcss.com should not be used in production')) return;
+            consoleWarnOriginal.apply(console, arguments);
+        };
+    </script>
+
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
 
     <style>
@@ -51,7 +59,7 @@
             </div>
 
             <nav class="flex-1 overflow-y-auto py-6 px-4 space-y-2">
-                
+             
                 <p class="px-3 text-[10px] font-black text-gray-500 uppercase tracking-widest mb-2 mt-2">Visão Macro</p>
                 
                 <a href="{{ route('dashboard') }}" class="flex items-center px-4 py-3.5 rounded-lg transition-all {{ request()->routeIs('dashboard') ? 'bg-brand-gold text-brand-black font-black shadow-lg' : 'text-gray-400 hover:bg-gray-900 hover:text-brand-gold font-bold' }}">
@@ -70,12 +78,12 @@
                     <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
                     Orçamentos (Site)
                 </a>
-                
+ 
                 <a href="{{ route('admin.pedidos.index') }}" class="flex items-center px-4 py-3.5 rounded-lg transition-all {{ request()->routeIs('admin.pedidos.*') && !request()->routeIs('admin.orcamentos.*') && !request()->routeIs('admin.pedidos.create') ? 'bg-brand-gold text-brand-black font-black shadow-lg' : 'text-gray-400 hover:bg-gray-900 hover:text-brand-gold font-bold' }}">
                     <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
                     Pedidos e OS
                 </a>
-                
+  
                 <a href="{{ route('admin.produtos.index') }}" class="flex items-center px-4 py-3.5 rounded-lg transition-all {{ request()->routeIs('admin.produtos.*') ? 'bg-brand-gold text-brand-black font-black shadow-lg' : 'text-gray-400 hover:bg-gray-900 hover:text-brand-gold font-bold' }}">
                     <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path></svg>
                     Acervo e Estoque

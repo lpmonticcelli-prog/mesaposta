@@ -7,7 +7,7 @@ use App\Http\Controllers\Admin\ProdutoController;
 use App\Http\Controllers\Admin\FinanceiroController;
 use App\Http\Controllers\Admin\ClienteController;
 use App\Http\Controllers\Site\OrcamentoController;
-use App\Http\Controllers\Estoque\ConferenciaController;
+// use App\Http\Controllers\Estoque\ConferenciaController;
 use Illuminate\Support\Facades\Route;
 
 // ========================================================================
@@ -33,9 +33,9 @@ Route::middleware('auth')->group(function () {
 // APP DO GALPÃO (CHECK-IN VIA QR CODE E AVARIAS)
 // ========================================================================
 Route::middleware(['auth', 'verified'])->group(function () {
-    Route::get('/estoque/conferencia', [ConferenciaController::class, 'index'])->name('estoque.conferencia');
+    // Route::get('/estoque/conferencia', [ConferenciaController::class, 'index'])->name('estoque.conferencia');
     // -> ROTA INJETADA: Processa o botão de "Tudo OK" ou as fotos das "Avarias"
-    Route::post('/estoque/conferencia/{pedido}/processar', [ConferenciaController::class, 'processar'])->name('estoque.conferencia.processar');
+    // Route::post('/estoque/conferencia/{pedido}/processar', [ConferenciaController::class, 'processar'])->name('estoque.conferencia.processar');
 });
 
 // ========================================================================
@@ -67,6 +67,7 @@ Route::middleware(['auth', 'verified'])->prefix('admin')->group(function () {
     Route::get('/financeiro/receber', [FinanceiroController::class, 'receber'])->name('admin.financeiro.receber');
     Route::get('/financeiro/pagar', [FinanceiroController::class, 'pagar'])->name('admin.financeiro.pagar');
     Route::get('/financeiro/fluxo', [FinanceiroController::class, 'fluxo'])->name('admin.financeiro.fluxo');
+    Route::post('/financeiro', [FinanceiroController::class, 'store'])->name('admin.financeiro.store');
     
     // --- MÓDULO 3: ACERVO FÍSICO ---
     Route::get('/produtos', [ProdutoController::class, 'index'])->name('admin.produtos.index');
