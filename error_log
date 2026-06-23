@@ -1,0 +1,60 @@
+[02-Jun-2026 01:27:23 America/Fortaleza] PHP Warning:  require(/home1/hg8cdb31/repositories/mesaposta/vendor/autoload.php): Failed to open stream: No such file or directory in /home1/hg8cdb31/repositories/mesaposta/artisan on line 9
+[02-Jun-2026 01:27:23 America/Fortaleza] PHP Warning:  require(/home1/hg8cdb31/repositories/mesaposta/vendor/autoload.php): Failed to open stream: No such file or directory in /home1/hg8cdb31/repositories/mesaposta/artisan on line 9
+[02-Jun-2026 01:27:23 America/Fortaleza] PHP Fatal error:  Uncaught Error: Failed opening required '/home1/hg8cdb31/repositories/mesaposta/vendor/autoload.php' (include_path='.:/opt/cpanel/ea-php82/root/usr/share/pear') in /home1/hg8cdb31/repositories/mesaposta/artisan:9
+Stack trace:
+#0 {main}
+  thrown in /home1/hg8cdb31/repositories/mesaposta/artisan on line 9
+[02-Jun-2026 01:27:24 America/Fortaleza] PHP Warning:  require(/home1/hg8cdb31/repositories/mesaposta/vendor/autoload.php): Failed to open stream: No such file or directory in /home1/hg8cdb31/repositories/mesaposta/artisan on line 9
+[02-Jun-2026 01:27:24 America/Fortaleza] PHP Warning:  require(/home1/hg8cdb31/repositories/mesaposta/vendor/autoload.php): Failed to open stream: No such file or directory in /home1/hg8cdb31/repositories/mesaposta/artisan on line 9
+[02-Jun-2026 01:27:24 America/Fortaleza] PHP Fatal error:  Uncaught Error: Failed opening required '/home1/hg8cdb31/repositories/mesaposta/vendor/autoload.php' (include_path='.:/opt/cpanel/ea-php82/root/usr/share/pear') in /home1/hg8cdb31/repositories/mesaposta/artisan:9
+Stack trace:
+#0 {main}
+  thrown in /home1/hg8cdb31/repositories/mesaposta/artisan on line 9
+[02-Jun-2026 01:30:49 America/Fortaleza] PHP Warning:  require(/home1/hg8cdb31/repositories/mesaposta/vendor/autoload.php): Failed to open stream: No such file or directory in /home1/hg8cdb31/repositories/mesaposta/artisan on line 9
+[02-Jun-2026 01:30:49 America/Fortaleza] PHP Warning:  require(/home1/hg8cdb31/repositories/mesaposta/vendor/autoload.php): Failed to open stream: No such file or directory in /home1/hg8cdb31/repositories/mesaposta/artisan on line 9
+[02-Jun-2026 01:30:49 America/Fortaleza] PHP Fatal error:  Uncaught Error: Failed opening required '/home1/hg8cdb31/repositories/mesaposta/vendor/autoload.php' (include_path='.:/opt/cpanel/ea-php82/root/usr/share/pear') in /home1/hg8cdb31/repositories/mesaposta/artisan:9
+Stack trace:
+#0 {main}
+  thrown in /home1/hg8cdb31/repositories/mesaposta/artisan on line 9
+[02-Jun-2026 01:30:49 America/Fortaleza] PHP Warning:  require(/home1/hg8cdb31/repositories/mesaposta/vendor/autoload.php): Failed to open stream: No such file or directory in /home1/hg8cdb31/repositories/mesaposta/artisan on line 9
+[02-Jun-2026 01:30:49 America/Fortaleza] PHP Warning:  require(/home1/hg8cdb31/repositories/mesaposta/vendor/autoload.php): Failed to open stream: No such file or directory in /home1/hg8cdb31/repositories/mesaposta/artisan on line 9
+[02-Jun-2026 01:30:49 America/Fortaleza] PHP Fatal error:  Uncaught Error: Failed opening required '/home1/hg8cdb31/repositories/mesaposta/vendor/autoload.php' (include_path='.:/opt/cpanel/ea-php82/root/usr/share/pear') in /home1/hg8cdb31/repositories/mesaposta/artisan:9
+Stack trace:
+#0 {main}
+  thrown in /home1/hg8cdb31/repositories/mesaposta/artisan on line 9
+[02-Jun-2026 01:31:27 America/Fortaleza] PHP Warning:  require(/home1/hg8cdb31/repositories/mesaposta/vendor/autoload.php): Failed to open stream: No such file or directory in /home1/hg8cdb31/repositories/mesaposta/artisan on line 9
+[02-Jun-2026 01:31:27 America/Fortaleza] PHP Warning:  require(/home1/hg8cdb31/repositories/mesaposta/vendor/autoload.php): Failed to open stream: No such file or directory in /home1/hg8cdb31/repositories/mesaposta/artisan on line 9
+[02-Jun-2026 01:31:27 America/Fortaleza] PHP Fatal error:  Uncaught Error: Failed opening required '/home1/hg8cdb31/repositories/mesaposta/vendor/autoload.php' (include_path='.:/opt/cpanel/ea-php82/root/usr/share/pear') in /home1/hg8cdb31/repositories/mesaposta/artisan:9
+Stack trace:
+#0 {main}
+  thrown in /home1/hg8cdb31/repositories/mesaposta/artisan on line 9
+[02-Jun-2026 01:32:45 America/Fortaleza] PHP Warning:  require(/home1/hg8cdb31/repositories/mesaposta/vendor/autoload.php): Failed to open stream: No such file or directory in /home1/hg8cdb31/repositories/mesaposta/artisan on line 9
+[02-Jun-2026 01:32:45 America/Fortaleza] PHP Warning:  require(/home1/hg8cdb31/repositories/mesaposta/vendor/autoload.php): Failed to open stream: No such file or directory in /home1/hg8cdb31/repositories/mesaposta/artisan on line 9
+[02-Jun-2026 01:32:45 America/Fortaleza] PHP Fatal error:  Uncaught Error: Failed opening required '/home1/hg8cdb31/repositories/mesaposta/vendor/autoload.php' (include_path='.:/opt/cpanel/ea-php82/root/usr/share/pear') in /home1/hg8cdb31/repositories/mesaposta/artisan:9
+Stack trace:
+#0 {main}
+  thrown in /home1/hg8cdb31/repositories/mesaposta/artisan on line 9
+[02-Jun-2026 01:32:45 America/Fortaleza] PHP Warning:  require(/home1/hg8cdb31/repositories/mesaposta/vendor/autoload.php): Failed to open stream: No such file or directory in /home1/hg8cdb31/repositories/mesaposta/artisan on line 9
+[02-Jun-2026 01:32:45 America/Fortaleza] PHP Warning:  require(/home1/hg8cdb31/repositories/mesaposta/vendor/autoload.php): Failed to open stream: No such file or directory in /home1/hg8cdb31/repositories/mesaposta/artisan on line 9
+[02-Jun-2026 01:32:45 America/Fortaleza] PHP Fatal error:  Uncaught Error: Failed opening required '/home1/hg8cdb31/repositories/mesaposta/vendor/autoload.php' (include_path='.:/opt/cpanel/ea-php82/root/usr/share/pear') in /home1/hg8cdb31/repositories/mesaposta/artisan:9
+Stack trace:
+#0 {main}
+  thrown in /home1/hg8cdb31/repositories/mesaposta/artisan on line 9
+[02-Jun-2026 01:33:38 America/Fortaleza] PHP Warning:  require(/home1/hg8cdb31/repositories/mesaposta/vendor/autoload.php): Failed to open stream: No such file or directory in /home1/hg8cdb31/repositories/mesaposta/artisan on line 9
+[02-Jun-2026 01:33:38 America/Fortaleza] PHP Warning:  require(/home1/hg8cdb31/repositories/mesaposta/vendor/autoload.php): Failed to open stream: No such file or directory in /home1/hg8cdb31/repositories/mesaposta/artisan on line 9
+[02-Jun-2026 01:33:38 America/Fortaleza] PHP Fatal error:  Uncaught Error: Failed opening required '/home1/hg8cdb31/repositories/mesaposta/vendor/autoload.php' (include_path='.:/opt/cpanel/ea-php82/root/usr/share/pear') in /home1/hg8cdb31/repositories/mesaposta/artisan:9
+Stack trace:
+#0 {main}
+  thrown in /home1/hg8cdb31/repositories/mesaposta/artisan on line 9
+[02-Jun-2026 01:34:40 America/Fortaleza] PHP Warning:  require(/home1/hg8cdb31/repositories/mesaposta/vendor/autoload.php): Failed to open stream: No such file or directory in /home1/hg8cdb31/repositories/mesaposta/artisan on line 9
+[02-Jun-2026 01:34:40 America/Fortaleza] PHP Warning:  require(/home1/hg8cdb31/repositories/mesaposta/vendor/autoload.php): Failed to open stream: No such file or directory in /home1/hg8cdb31/repositories/mesaposta/artisan on line 9
+[02-Jun-2026 01:34:40 America/Fortaleza] PHP Fatal error:  Uncaught Error: Failed opening required '/home1/hg8cdb31/repositories/mesaposta/vendor/autoload.php' (include_path='.:/opt/cpanel/ea-php82/root/usr/share/pear') in /home1/hg8cdb31/repositories/mesaposta/artisan:9
+Stack trace:
+#0 {main}
+  thrown in /home1/hg8cdb31/repositories/mesaposta/artisan on line 9
+[02-Jun-2026 01:34:40 America/Fortaleza] PHP Warning:  require(/home1/hg8cdb31/repositories/mesaposta/vendor/autoload.php): Failed to open stream: No such file or directory in /home1/hg8cdb31/repositories/mesaposta/artisan on line 9
+[02-Jun-2026 01:34:40 America/Fortaleza] PHP Warning:  require(/home1/hg8cdb31/repositories/mesaposta/vendor/autoload.php): Failed to open stream: No such file or directory in /home1/hg8cdb31/repositories/mesaposta/artisan on line 9
+[02-Jun-2026 01:34:40 America/Fortaleza] PHP Fatal error:  Uncaught Error: Failed opening required '/home1/hg8cdb31/repositories/mesaposta/vendor/autoload.php' (include_path='.:/opt/cpanel/ea-php82/root/usr/share/pear') in /home1/hg8cdb31/repositories/mesaposta/artisan:9
+Stack trace:
+#0 {main}
+  thrown in /home1/hg8cdb31/repositories/mesaposta/artisan on line 9

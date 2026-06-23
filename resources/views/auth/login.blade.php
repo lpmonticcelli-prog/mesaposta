@@ -1,104 +1,105 @@
 <!DOCTYPE html>
-<html lang="pt-BR">
+<html lang="pt-br">
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Mesa Posta – Login Administrativo</title>
-    <link rel="preconnect" href="https://fonts.bunny.net">
-    <link href="https://fonts.bunny.net/css?family=playfair-display:600,700,900|figtree:400,500,700&display=swap" rel="stylesheet" />
+    <title>Acesso Restrito - Mesa Posta ERP</title>
+    
+    <link href="https://fonts.bunny.net/css?family=figtree:400,500,600,700,800,900&display=swap" rel="stylesheet" />
     <script src="https://cdn.tailwindcss.com"></script>
+    
     <script>
         tailwind.config = {
             theme: {
                 extend: {
                     colors: {
-                        mesa: {
+                        brand: {
                             dark: '#111111',
-                            black: '#0A0A0A',
-                            gold: '#D4AF37',
-                            goldHover: '#AA882C',
-                            gray: '#1E1E1E'
+                            black: '#0a0a0a',
+                            gold: '#ffc20c',
+                            hover: '#e0a800'
                         }
                     },
-                    fontFamily: {
-                        serif: ['Playfair Display', 'serif'],
-                        sans: ['Figtree', 'sans-serif']
-                    }
+                    fontFamily: { sans: ['Figtree', 'sans-serif'] }
                 }
             }
         }
     </script>
-    <style>
-        .gold-gradient {
-            background: linear-gradient(135deg, #D4AF37 0%, #F3E5AB 50%, #AA882C 100%);
-        }
-    </style>
 </head>
-<body class="font-sans antialiased text-gray-200 bg-mesa-black min-h-screen flex items-center justify-center relative overflow-hidden p-4">
+<body class="font-sans antialiased bg-brand-black min-h-screen flex items-center justify-center relative overflow-hidden">
 
-    <div class="absolute top-[-20%] left-[-10%] w-[600px] h-[600px] bg-mesa-gold/5 rounded-full filter blur-3xl"></div>
-    <div class="absolute bottom-[-20%] right-[-10%] w-[600px] h-[600px] bg-mesa-dark/50 rounded-full filter blur-3xl"></div>
+    {{-- IMAGEM DE FUNDO COM MÁSCARA ESCURA --}}
+    <div class="absolute inset-0 z-0">
+        <img src="https://images.unsplash.com/photo-1511795409834-ef04bbd61622?q=80&w=2069&auto=format&fit=crop" class="w-full h-full object-cover object-center opacity-30" alt="Mesa Posta Background">
+        <div class="absolute inset-0 bg-gradient-to-t from-brand-black via-brand-dark/80 to-transparent"></div>
+    </div>
 
-    <div class="w-full max-w-md bg-mesa-dark/90 border border-mesa-gold/20 rounded-3xl p-8 backdrop-blur-xl shadow-2xl relative z-10">
+    {{-- CAIXA DE LOGIN PREMIUM --}}
+    <div class="relative z-10 w-full max-w-md px-8 py-10 bg-brand-dark/80 backdrop-blur-lg shadow-2xl rounded-2xl border border-gray-800 mx-4">
         
+        {{-- CABEÇALHO DO LOGIN --}}
         <div class="text-center mb-8">
-            <div class="inline-flex items-center justify-center w-16 h-16 rounded-full border border-mesa-gold/30 bg-mesa-black mb-4 shadow-inner">
-                <svg class="w-8 h-8 text-mesa-gold" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1" d="M12 3v18M3 12h18M12 3a9 9 0 110 18 9 9 0 010-18z" />
-                </svg>
-            </div>
-            <h1 class="text-2xl font-serif font-black tracking-widest text-white uppercase">Mesa Posta</h1>
-            <p class="text-[10px] font-bold text-mesa-gold uppercase tracking-widest mt-1">Ecosistema de Logística & ERP</p>
+            <h1 class="text-3xl font-black text-brand-gold tracking-widest uppercase mb-2 drop-shadow-md">Mesa Posta</h1>
+            <p class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Sistema ERP de Logística & Comercial</p>
         </div>
 
+        {{-- ALERTAS DE ERRO (Senha incorreta, etc) --}}
+        @if ($errors->any())
+            <div class="mb-6 bg-red-900/40 border border-red-500/50 p-4 rounded-lg">
+                <ul class="text-[11px] font-black text-red-400 uppercase tracking-wider list-disc list-inside px-2">
+                    @foreach ($errors->all() as $error)
+                        <li>{{ $error }}</li>
+                    @endforeach
+                </ul>
+            </div>
+        @endif
+
         @if (session('status'))
-            <div class="mb-4 text-sm font-bold text-green-500 bg-green-500/10 border border-green-500/20 p-3 rounded-lg text-center">
+            <div class="mb-6 text-[11px] font-black text-green-400 uppercase tracking-wider text-center">
                 {{ session('status') }}
             </div>
         @endif
 
+        {{-- FORMULÁRIO DE ACESSO --}}
         <form method="POST" action="{{ route('login') }}" class="space-y-6">
             @csrf
 
+            {{-- CAMPO E-MAIL --}}
             <div>
-                <label for="email" class="block text-[10px] font-black text-mesa-gold uppercase tracking-widest mb-2">Credencial de Acesso</label>
+                <label for="email" class="block text-[10px] font-black text-gray-500 uppercase tracking-widest mb-2">E-mail Corporativo</label>
                 <input id="email" type="email" name="email" value="{{ old('email') }}" required autofocus autocomplete="username"
-                       placeholder="usuario@mesaposta.com"
-                       class="block w-full rounded-xl border border-white/10 bg-mesa-black/50 text-white placeholder-gray-600 focus:border-mesa-gold focus:ring focus:ring-mesa-gold/20 focus:outline-none font-medium px-4 py-3.5 transition-all">
-                @if($errors->get('email'))
-                    <p class="mt-2 text-xs font-bold text-red-500">{{ $errors->first('email') }}</p>
-                @endif
+                    class="w-full bg-brand-black/50 border border-gray-700 text-white px-4 py-4 rounded-lg shadow-inner font-bold text-sm focus:border-brand-gold focus:ring-1 focus:ring-brand-gold transition-colors outline-none placeholder-gray-600"
+                    placeholder="exemplo@mesaposta.com">
             </div>
 
+            {{-- CAMPO SENHA --}}
             <div>
                 <div class="flex justify-between items-center mb-2">
-                    <label for="password" class="block text-[10px] font-black text-mesa-gold uppercase tracking-widest">Chave de Segurança</label>
-                    @if (Route::has('password.request'))
-                        <a class="text-[9px] font-bold text-gray-400 hover:text-mesa-gold transition-colors uppercase tracking-widest" href="{{ route('password.request') }}">
-                            Recuperar Chave
-                        </a>
-                    @endif
+                    <label for="password" class="block text-[10px] font-black text-gray-500 uppercase tracking-widest">Senha de Segurança</label>
                 </div>
                 <input id="password" type="password" name="password" required autocomplete="current-password"
-                       placeholder="••••••••••••"
-                       class="block w-full rounded-xl border border-white/10 bg-mesa-black/50 text-white placeholder-gray-600 focus:border-mesa-gold focus:ring focus:ring-mesa-gold/20 focus:outline-none font-medium px-4 py-3.5 transition-all">
-                @if($errors->get('password'))
-                    <p class="mt-2 text-xs font-bold text-red-500">{{ $errors->first('password') }}</p>
+                    class="w-full bg-brand-black/50 border border-gray-700 text-white px-4 py-4 rounded-lg shadow-inner font-bold text-sm focus:border-brand-gold focus:ring-1 focus:ring-brand-gold transition-colors outline-none placeholder-gray-600"
+                    placeholder="••••••••">
+            </div>
+
+            {{-- RODAPÉ DO FORM (Lembrar + Esqueci Senha) --}}
+            <div class="flex items-center justify-between mt-2">
+                <label for="remember_me" class="inline-flex items-center cursor-pointer group">
+                    <input id="remember_me" type="checkbox" name="remember" class="w-4 h-4 rounded bg-brand-black border-gray-700 text-brand-gold focus:ring-brand-gold focus:ring-offset-brand-dark cursor-pointer">
+                    <span class="ml-2 text-[10px] font-bold text-gray-400 uppercase tracking-widest group-hover:text-brand-gold transition-colors">Manter conectado</span>
+                </label>
+
+                @if (Route::has('password.request'))
+                    <a href="{{ route('password.request') }}" class="text-[10px] font-black text-gray-500 hover:text-brand-gold uppercase tracking-widest transition-colors">
+                        Esqueceu a senha?
+                    </a>
                 @endif
             </div>
 
-            <div class="flex items-center">
-                <label for="remember_me" class="inline-flex items-center cursor-pointer select-none">
-                    <input id="remember_me" type="checkbox" name="remember" 
-                           class="rounded border-white/20 bg-mesa-black text-mesa-gold focus:ring-offset-mesa-black focus:ring-mesa-gold">
-                    <span class="ms-2 text-[10px] font-bold text-gray-400 uppercase tracking-widest">Manter terminal conectado</span>
-                </label>
-            </div>
-
-            <div class="pt-2">
-                <button type="submit" 
-                        class="w-full py-4 px-4 rounded-xl shadow-xl text-xs font-black text-mesa-black gold-gradient hover:opacity-90 active:scale-[0.98] focus:outline-none uppercase tracking-widest transition-all">
-                    Autenticar Operador
+            {{-- BOTÃO ENTRAR --}}
+            <div class="pt-4">
+                <button type="submit" class="w-full py-4 bg-brand-gold text-brand-dark font-black uppercase tracking-widest rounded-lg text-xs hover:bg-brand-hover shadow-[0_0_20px_rgba(255,194,12,0.2)] hover:shadow-[0_0_25px_rgba(255,194,12,0.4)] transition-all transform hover:-translate-y-0.5">
+                    Entrar no Sistema
                 </button>
             </div>
         </form>

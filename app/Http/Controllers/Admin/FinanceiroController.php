@@ -3,54 +3,108 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
-use App\Models\Lancamento;
+use App\Models\ContaReceber;
+use App\Models\ContaPagar;
+use Illuminate\Http\Request;
 
 class FinanceiroController extends Controller
 {
-    /**
-     * MÓDULO CONTAS A RECEBER
-     * Eager Loading Estrito aplicado para mitigar o problema de N+1 Queries.
-     */
-    public function receber() 
+    public function fluxo(Request $request)
     {
-        // O método with() carrega a Ordem de Serviço (pedido) e o Cliente amarrado a ela,
-        // reduzindo 21 queries separadas para apenas 2 queries otimizadas no MySQL.
-        $lancamentos = Lancamento::with('pedido.cliente')
-            ->where('tipo', 'receita')
-            ->orderBy('data_vencimento', 'asc')
-            ->paginate(20);
+        $receitasQuery = ContaReceber::with('pedido.cliente');
+        $despesasQuery = ContaPagar::query();
+        
+        if ($request->filled('busca')) {
+            $b = $request->busca;
+            $receitasQuery->where(function($q) use ($b) {
+                $q->where('descricao', 'like', "%{$b}%")
+                  ->orWhereHas('pedido.cliente', fn($c) => $c->where('nome', 'like', "%{$b}%"));
+            });
+            $despesasQuery->where('descricao', 'like', "%{$b}%");
+        }
+        
+        if ($request->filled('status')) {
+            $receitasQuery->where('status', $request->status);
+            $despesasQuery->where('status', $request->status);
+        }
+        if ($request->filled('data_inicio') && $request->filled('data_fim')) {
+            $receitasQuery->whereBetween('data_vencimento', [$request->data_inicio, $request->data_fim]);
+            $despesasQuery->whereBetween('data_vencimento', [$request->data_inicio, $request->data_fim]);
+        }
 
-        $titulo = 'Contas a Receber';
-        $cor = 'green';
+        $receitas = $receitasQuery->orderBy('data_vencimento', 'asc')->get();
+        $despesas = $despesasQuery->orderBy('data_vencimento', 'asc')->get();
 
-        return view('admin.financeiro.index', compact('lancamentos', 'titulo', 'cor'));
+        return view('admin.financeiro.fluxo', compact('receitas', 'despesas'));
     }
 
-    /**
-     * MÓDULO CONTAS A PAGAR
-     * Eager Loading Estrito aplicado.
-     */
-    public function pagar() 
+    public function receber(Request $request)
     {
-        // Contas a pagar (como conta de luz) geralmente não têm 'pedido_id',
-        // mas o with() lidará com isso silenciosamente sem quebrar.
-        $lancamentos = Lancamento::with('pedido.cliente')
-            ->where('tipo', 'despesa')
-            ->orderBy('data_vencimento', 'asc')
-            ->paginate(20);
+        $query = ContaReceber::with('pedido.cliente');
 
-        $titulo = 'Contas a Pagar';
-        $cor = 'red';
+        // =========================================================================
+        // 📊 MOTOR DE FILTRO AVANÇADO (Inadimplência de Avarias)
+        // =========================================================================
+        if ($request->filtro === 'avarias') {
+            // Força a busca por Multas Pendentes
+            $query->where('descricao', 'like', '%Multa de Avarias%')
+                  ->where('status', 'pendente');
+        } elseif ($request->filtro === 'locacoes') {
+            // Oculta as multas e mostra apenas as locações normais
+            $query->where('descricao', 'not like', '%Multa de Avarias%');
+        }
 
-        return view('admin.financeiro.index', compact('lancamentos', 'titulo', 'cor'));
+        if ($request->filled('busca')) {
+            $b = $request->busca;
+            $query->where(function($q) use ($b) {
+                $q->where('descricao', 'like', "%{$b}%")
+                  ->orWhereHas('pedido.cliente', fn($c) => $c->where('nome', 'like', "%{$b}%"));
+            });
+        }
+        
+        // Só aplica o filtro de status normal se NÃO estiver na aba de avarias
+        if ($request->filled('status') && $request->filtro !== 'avarias') {
+            $query->where('status', $request->status);
+        }
+        
+        if ($request->filled('data_inicio')) $query->whereDate('data_vencimento', '>=', $request->data_inicio);
+        if ($request->filled('data_fim')) $query->whereDate('data_vencimento', '<=', $request->data_fim);
+
+        $lancamentos = $query->orderBy('data_vencimento', 'asc')->paginate(20)->withQueryString();
+        return view('admin.financeiro.receber', compact('lancamentos'));
     }
 
-    /**
-     * REDIRECIONAMENTO DE FLUXO DE CAIXA
-     */
-    public function fluxo() 
+    public function pagar(Request $request)
     {
-        // O Gráfico do Fluxo de Caixa já vive de forma macro na tela inicial do Cockpit!
-        return redirect()->route('dashboard');
+        $query = ContaPagar::query();
+        if ($request->filled('busca')) $query->where('descricao', 'like', "%{$request->busca}%");
+        if ($request->filled('status')) $query->where('status', $request->status);
+        if ($request->filled('data_inicio')) $query->whereDate('data_vencimento', '>=', $request->data_inicio);
+        if ($request->filled('data_fim')) $query->whereDate('data_vencimento', '<=', $request->data_fim);
+
+        $lancamentos = $query->orderBy('data_vencimento', 'asc')->paginate(20)->withQueryString();
+        return view('admin.financeiro.pagar', compact('lancamentos'));
+    }
+
+    public function store(Request $request)
+    {
+        $request->validate(['tipo' => 'required', 'descricao' => 'required', 'valor' => 'required|numeric', 'data_vencimento' => 'required|date']);
+        if ($request->tipo === 'receber') ContaReceber::create($request->except('tipo'));
+        else ContaPagar::create($request->except('tipo'));
+        return back()->with('success', 'Lançamento financeiro adicionado!');
+    }
+
+    public function baixar(Request $request, $id)
+    {
+        if ($request->tipo === 'receber') ContaReceber::findOrFail($id)->update(['status' => 'pago', 'data_pagamento' => now()]);
+        else ContaPagar::findOrFail($id)->update(['status' => 'pago', 'data_pagamento' => now()]);
+        return back()->with('success', 'Título liquidado com sucesso!');
+    }
+
+    public function destroy(Request $request, $id)
+    {
+        if ($request->tipo === 'receber') ContaReceber::findOrFail($id)->delete();
+        else ContaPagar::findOrFail($id)->delete();
+        return back()->with('success', 'Lançamento estornado e excluído.');
     }
 }

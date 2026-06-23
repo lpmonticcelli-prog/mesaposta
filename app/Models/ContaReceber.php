@@ -8,23 +8,29 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 class ContaReceber extends Model
 {
     protected $table = 'contas_receber';
-    
-    protected $fillable = [
-        'pedido_id', 
-        'cliente_id', 
-        'descricao', 
-        'valor', 
-        'data_vencimento', 
-        'status'
+    protected $guarded = ['id'];
+    protected $casts = [
+        'data_vencimento' => 'date',
+        'data_pagamento' => 'datetime',
+        'valor' => 'decimal:2',
     ];
-
-    public function cliente(): BelongsTo
-    {
-        return $this->belongsTo(Cliente::class, 'cliente_id');
-    }
 
     public function pedido(): BelongsTo
     {
         return $this->belongsTo(Pedido::class, 'pedido_id');
+    }
+
+    // =========================================================================
+    // 📊 CENTRO DE CUSTOS: CATEGORIAS DE ENTRADAS (RECEITAS)
+    // =========================================================================
+    public static function categorias()
+    {
+        return [
+            'locacao' => 'Locação de Acervo',
+            'multa_avaria' => 'Multas e Reposição de Avarias',
+            'frete' => 'Taxa de Entrega / Logística',
+            'venda' => 'Venda de Materiais',
+            'outros' => 'Outras Receitas Operacionais'
+        ];
     }
 }

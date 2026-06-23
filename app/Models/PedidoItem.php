@@ -9,27 +9,33 @@ class PedidoItem extends Model
 {
     protected $table = 'pedido_itens';
 
-    protected $fillable = [
-        'pedido_id',
-        'produto_id',
-        'quantidade_pedida',
-        'valor_unitario',
-        'foto_avaria', // <-- AQUI: Permissão para salvar a foto da quebra ativada!
+    protected $guarded = ['id'];
+
+    // Força o sistema a tratar finanças e descontos como moeda (casas decimais)
+    protected $casts = [
+        'desconto' => 'decimal:2',
+        'valor_unitario' => 'decimal:2',
+        'valor_reposicao' => 'decimal:2',
     ];
 
-    /**
-     * RELACIONAMENTO PAI: A qual OS este item pertence?
-     */
     public function pedido(): BelongsTo
     {
         return $this->belongsTo(Pedido::class, 'pedido_id');
     }
 
-    /**
-     * RELACIONAMENTO MÃE: Qual é a peça original do acervo?
-     */
     public function produto(): BelongsTo
     {
-        return $this->belongsTo(Produto::class, 'produto_id');
+        return $this->belongsTo(Produto::class, 'produto_id')->withDefault([
+            'nome' => 'Peça Indisponível/Excluída',
+            'valor_reposicao' => 0
+        ]);
+    }
+
+    // A MATEMÁTICA FINANCEIRA: Subtotal = (Qtd x Valor) - Desconto
+    public function getSubtotalAttribute()
+    {
+        $bruto = $this->quantidade_pedida * $this->valor_unitario;
+        $desconto = $this->desconto ?? 0;
+        return max(0, $bruto - $desconto); // Impede subtotal negativo
     }
 }

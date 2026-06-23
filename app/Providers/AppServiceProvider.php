@@ -3,27 +3,46 @@
 namespace App\Providers;
 
 use Illuminate\Support\ServiceProvider;
-use Illuminate\Cache\RateLimiting\Limit;
-use Illuminate\Support\Facades\RateLimiter;
-use Illuminate\Http\Request;
-use Illuminate\Database\Eloquent\Model; // <-- IMPORTAÇÃO VITAL ADICIONADA
+use Illuminate\Support\Facades\View;
+use Illuminate\Support\Facades\Gate; // <-- IMPORTAÇÃO DO MOTOR DE SEGURANÇA ADICIONADA AQUI
 
 class AppServiceProvider extends ServiceProvider
 {
-    public function register(): void
-    {
-        //
-    }
+    public function register(): void {}
 
     public function boot(): void
     {
-        // Trava anti-DDoS em camada de aplicação: Máximo de 3 envios por minuto por IP.
-        RateLimiter::for('orcamento-site', function (Request $request) {
-            return Limit::perMinute(3)->by($request->ip());
+        // =========================================================================
+        // 1. O CÃO DE GUARDA DAS PATENTES (Impede Operadores de verem o Financeiro)
+        // =========================================================================
+        Gate::define('admin', function ($user) {
+            return $user->nivel_acesso === 'admin';
         });
 
-        // TRAVA NUCLEAR ANTI N+1: Proíbe o Lazy Loading no ambiente local/dev.
-        // Se você esquecer um "with('relacionamento')" nas consultas, o Laravel força um Erro 500 para te avisar.
-        Model::preventLazyLoading(! app()->isProduction());
+        // =========================================================================
+        // 2. MOTOR GLOBAL DA LICENÇA (Identidade Visual)
+        // =========================================================================
+        try {
+            $settingsPath = storage_path('app/settings.json');
+            
+            if (file_exists($settingsPath)) {
+                $settings = json_decode(file_get_contents($settingsPath), true);
+                $empresaNome = $settings['empresa_nome'] ?? 'Mesa Posta Locações';
+                $empresaLogo = $settings['empresa_logo'] ?? null;
+                $empresaCnpj = $settings['empresa_cnpj'] ?? '00.000.000/0001-00';
+            } else {
+                $empresaNome = 'Mesa Posta Locações';
+                $empresaLogo = null;
+                $empresaCnpj = '00.000.000/0001-00';
+            }
+            
+            View::share('empresaNome', $empresaNome);
+            View::share('empresaLogo', $empresaLogo);
+            View::share('empresaCnpj', $empresaCnpj);
+        } catch (\Exception $e) {
+            View::share('empresaNome', 'Mesa Posta Locações');
+            View::share('empresaLogo', null);
+            View::share('empresaCnpj', '00.000.000/0001-00');
+        }
     }
 }

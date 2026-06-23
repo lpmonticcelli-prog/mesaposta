@@ -3,8 +3,24 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>DIP Drinks ERP</title>
+    <title>DIP ERP</title>
 
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black">
+    <link rel="manifest" href="{{ asset('manifest.json') }}">
+
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                // A mágica do asset() resolve o caminho dinâmico da subpasta na HostGator
+                navigator.serviceWorker.register("{{ asset('sw.js') }}")
+                    .then(reg => console.log('PWA ativo com sucesso!', reg.scope))
+                    .catch(err => console.log('Falha ao ativar PWA:', err));
+            });
+        }
+    </script>
+    
     <link href="https://fonts.bunny.net/css?family=figtree:400,500,600,700,800,900&display=swap" rel="stylesheet" />
 
     <script src="https://cdn.tailwindcss.com"></script>
@@ -25,6 +41,14 @@
                 }
             }
         }
+    </script>
+
+    <script>
+        const consoleWarnOriginal = console.warn;
+        console.warn = function() {
+            if (arguments[0] && arguments[0].includes('cdn.tailwindcss.com should not be used in production')) return;
+            consoleWarnOriginal.apply(console, arguments);
+        };
     </script>
 
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
@@ -51,7 +75,7 @@
             </div>
 
             <nav class="flex-1 overflow-y-auto py-6 px-4 space-y-2">
-                
+             
                 <p class="px-3 text-[10px] font-black text-gray-500 uppercase tracking-widest mb-2 mt-2">Visão Macro</p>
                 
                 <a href="{{ route('dashboard') }}" class="flex items-center px-4 py-3.5 rounded-lg transition-all {{ request()->routeIs('dashboard') ? 'bg-brand-gold text-brand-black font-black shadow-lg' : 'text-gray-400 hover:bg-gray-900 hover:text-brand-gold font-bold' }}">
@@ -59,44 +83,53 @@
                     Painel ERP
                 </a>
 
-                <p class="px-3 text-[10px] font-black text-gray-500 uppercase tracking-widest mb-2 mt-8">Comercial & Operação</p>
+                @can('admin')
+                    <p class="px-3 text-[10px] font-black text-gray-500 uppercase tracking-widest mb-2 mt-8">Comercial & Operação</p>
 
-                <a href="{{ route('admin.clientes.index') }}" class="flex items-center px-4 py-3.5 rounded-lg transition-all {{ request()->routeIs('admin.clientes.*') ? 'bg-brand-gold text-brand-black font-black shadow-lg' : 'text-gray-400 hover:bg-gray-900 hover:text-brand-gold font-bold' }}">
-                    <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
-                    Carteira de Clientes
-                </a>
-                
-                <a href="{{ route('admin.orcamentos.index') }}" class="flex items-center px-4 py-3.5 rounded-lg transition-all {{ request()->routeIs('admin.orcamentos.*') ? 'bg-brand-gold text-brand-black font-black shadow-lg' : 'text-gray-400 hover:bg-gray-900 hover:text-brand-gold font-bold' }}">
-                    <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
-                    Orçamentos (Site)
-                </a>
-                
-                <a href="{{ route('admin.pedidos.index') }}" class="flex items-center px-4 py-3.5 rounded-lg transition-all {{ request()->routeIs('admin.pedidos.*') && !request()->routeIs('admin.orcamentos.*') && !request()->routeIs('admin.pedidos.create') ? 'bg-brand-gold text-brand-black font-black shadow-lg' : 'text-gray-400 hover:bg-gray-900 hover:text-brand-gold font-bold' }}">
-                    <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
-                    Pedidos e OS
-                </a>
-                
-                <a href="{{ route('admin.produtos.index') }}" class="flex items-center px-4 py-3.5 rounded-lg transition-all {{ request()->routeIs('admin.produtos.*') ? 'bg-brand-gold text-brand-black font-black shadow-lg' : 'text-gray-400 hover:bg-gray-900 hover:text-brand-gold font-bold' }}">
-                    <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path></svg>
-                    Acervo e Estoque
-                </a>
+                    <a href="{{ route('admin.clientes.index') }}" class="flex items-center px-4 py-3.5 rounded-lg transition-all {{ request()->routeIs('admin.clientes.*') ? 'bg-brand-gold text-brand-black font-black shadow-lg' : 'text-gray-400 hover:bg-gray-900 hover:text-brand-gold font-bold' }}">
+                        <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
+                        Carteira de Clientes
+                    </a>
+                    
+                    <a href="{{ route('admin.orcamentos.index') }}" class="flex items-center px-4 py-3.5 rounded-lg transition-all {{ request()->routeIs('admin.orcamentos.*') ? 'bg-brand-gold text-brand-black font-black shadow-lg' : 'text-gray-400 hover:bg-gray-900 hover:text-brand-gold font-bold' }}">
+                        <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+                        Orçamentos (Site)
+                    </a>
+    
+                    <a href="{{ route('admin.pedidos.index') }}" class="flex items-center px-4 py-3.5 rounded-lg transition-all {{ request()->routeIs('admin.pedidos.*') && !request()->routeIs('admin.orcamentos.*') && !request()->routeIs('admin.pedidos.create') ? 'bg-brand-gold text-brand-black font-black shadow-lg' : 'text-gray-400 hover:bg-gray-900 hover:text-brand-gold font-bold' }}">
+                        <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+                        Pedidos e OS
+                    </a>
+    
+                    <a href="{{ route('admin.produtos.index') }}" class="flex items-center px-4 py-3.5 rounded-lg transition-all {{ request()->routeIs('admin.produtos.*') ? 'bg-brand-gold text-brand-black font-black shadow-lg' : 'text-gray-400 hover:bg-gray-900 hover:text-brand-gold font-bold' }}">
+                        <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path></svg>
+                        Acervo e Estoque
+                    </a>
 
-                <p class="px-3 text-[10px] font-black text-gray-500 uppercase tracking-widest mb-2 mt-8">Cofre (Financeiro)</p>
-                
-                <a href="{{ route('admin.financeiro.receber') }}" class="flex items-center px-4 py-3.5 rounded-lg transition-all {{ request()->routeIs('admin.financeiro.receber') ? 'bg-green-600 text-white font-black shadow-lg' : 'text-gray-400 hover:bg-gray-900 hover:text-green-500 font-bold group' }}">
-                    <svg class="w-5 h-5 mr-3 {{ request()->routeIs('admin.financeiro.receber') ? 'text-white' : 'group-hover:text-green-500' }}" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-                    Contas a Receber
-                </a>
-                
-                <a href="{{ route('admin.financeiro.pagar') }}" class="flex items-center px-4 py-3.5 rounded-lg transition-all {{ request()->routeIs('admin.financeiro.pagar') ? 'bg-red-600 text-white font-black shadow-lg' : 'text-gray-400 hover:bg-gray-900 hover:text-red-500 font-bold group' }}">
-                    <svg class="w-5 h-5 mr-3 {{ request()->routeIs('admin.financeiro.pagar') ? 'text-white' : 'group-hover:text-red-500' }}" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 13l-5 5m0 0l-5-5m5 5V6"></path></svg>
-                    Contas a Pagar
-                </a>
-                
-                <a href="{{ route('admin.financeiro.fluxo') }}" class="flex items-center px-4 py-3.5 rounded-lg transition-all {{ request()->routeIs('admin.financeiro.fluxo') ? 'bg-blue-600 text-white font-black shadow-lg' : 'text-gray-400 hover:bg-gray-900 hover:text-blue-500 font-bold group' }}">
-                    <svg class="w-5 h-5 mr-3 {{ request()->routeIs('admin.financeiro.fluxo') ? 'text-white' : 'group-hover:text-blue-500' }}" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z"></path></svg>
-                    Fluxo de Caixa
-                </a>
+                    <p class="px-3 text-[10px] font-black text-gray-500 uppercase tracking-widest mb-2 mt-8">Cofre (Financeiro)</p>
+                    
+                    <a href="{{ route('admin.financeiro.receber') }}" class="flex items-center px-4 py-3.5 rounded-lg transition-all {{ request()->routeIs('admin.financeiro.receber') ? 'bg-green-600 text-white font-black shadow-lg' : 'text-gray-400 hover:bg-gray-900 hover:text-green-500 font-bold group' }}">
+                        <svg class="w-5 h-5 mr-3 {{ request()->routeIs('admin.financeiro.receber') ? 'text-white' : 'group-hover:text-green-500' }}" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                        Contas a Receber
+                    </a>
+                    
+                    <a href="{{ route('admin.financeiro.pagar') }}" class="flex items-center px-4 py-3.5 rounded-lg transition-all {{ request()->routeIs('admin.financeiro.pagar') ? 'bg-red-600 text-white font-black shadow-lg' : 'text-gray-400 hover:bg-gray-900 hover:text-red-500 font-bold group' }}">
+                        <svg class="w-5 h-5 mr-3 {{ request()->routeIs('admin.financeiro.pagar') ? 'text-white' : 'group-hover:text-red-500' }}" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 13l-5 5m0 0l-5-5m5 5V6"></path></svg>
+                        Contas a Pagar
+                    </a>
+                    
+                    <a href="{{ route('admin.financeiro.fluxo') }}" class="flex items-center px-4 py-3.5 rounded-lg transition-all {{ request()->routeIs('admin.financeiro.fluxo') ? 'bg-blue-600 text-white font-black shadow-lg' : 'text-gray-400 hover:bg-gray-900 hover:text-blue-500 font-bold group' }}">
+                        <svg class="w-5 h-5 mr-3 {{ request()->routeIs('admin.financeiro.fluxo') ? 'text-white' : 'group-hover:text-blue-500' }}" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z"></path></svg>
+                        Fluxo de Caixa
+                    </a>
+
+                    <p class="px-3 text-[10px] font-black text-gray-500 uppercase tracking-widest mb-2 mt-8">Inteligência de Negócio</p>
+                    
+                    <a href="{{ route('admin.relatorios.index') }}" class="flex items-center px-4 py-3.5 rounded-lg transition-all {{ request()->routeIs('admin.relatorios.*') ? 'bg-brand-gold text-brand-black font-black shadow-lg' : 'text-gray-400 hover:bg-gray-900 hover:text-brand-gold font-bold' }}">
+                        <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+                        Relatórios DRE
+                    </a>
+                @endcan
 
             </nav>
 
@@ -126,14 +159,26 @@
 
                 <div class="flex items-center space-x-4 relative">
                     <div class="hidden sm:block text-right mt-1">
-                        <p class="text-xs font-black text-brand-dark uppercase tracking-widest leading-none">{{ Auth::user()?->name ?? 'Diretoria' }}</p>
-                        <p class="text-[10px] font-bold text-brand-hover uppercase mt-1">Administrador</p>
+                        <p class="text-xs font-black text-brand-dark uppercase tracking-widest leading-none">{{ Auth::user()?->name ?? 'Membro' }}</p>
+                        <p class="text-[10px] font-bold text-brand-hover uppercase mt-1">
+                            {{ Auth::user()?->nivel_acesso === 'admin' ? 'Administrador' : 'Operador Logístico' }}
+                        </p>
                     </div>
                     <button @click="profileOpen = !profileOpen" @click.away="profileOpen = false" class="w-11 h-11 rounded-full bg-brand-dark text-brand-gold font-black flex items-center justify-center border-2 border-brand-gold shadow-md hover:scale-105 transition-transform cursor-pointer">
-                        {{ substr(Auth::user()?->name ?? 'D', 0, 1) }}
+                        {{ substr(Auth::user()?->name ?? 'U', 0, 1) }}
                     </button>
-                    <div x-cloak x-show="profileOpen" x-transition class="absolute right-0 top-14 w-48 mt-2 bg-white border border-gray-200 rounded-md shadow-xl py-1 z-50">
-                        <a href="{{ route('profile.edit') }}" class="block px-4 py-3 text-sm font-bold text-gray-700 hover:bg-brand-light hover:text-brand-gold transition-colors">Configurações da Conta</a>
+                    <div x-cloak x-show="profileOpen" x-transition class="absolute right-0 top-14 w-48 mt-2 bg-white border border-gray-200 rounded-md shadow-xl py-1 z-50 overflow-hidden">
+                        
+                        @can('admin')
+                            <a href="{{ route('profile.edit') }}" class="block px-4 py-3 text-sm font-bold text-gray-700 hover:bg-brand-light hover:text-brand-gold transition-colors">Configurações da Conta</a>
+                        @endcan
+                        
+                        <form method="POST" action="{{ route('logout') }}" class="border-t border-gray-100 bg-red-50">
+                            @csrf
+                            <button type="submit" class="w-full text-left px-4 py-3 text-sm font-black text-red-600 hover:bg-red-600 hover:text-white transition-colors">
+                                Sair do Sistema
+                            </button>
+                        </form>
                     </div>
                 </div>
             </header>

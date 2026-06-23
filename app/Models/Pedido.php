@@ -11,21 +11,15 @@ class Pedido extends Model
 {
     protected $table = 'pedidos';
 
-    protected $fillable = [
-        'pedido_original_id', // <-- CORDÃO UMBILICAL
-        'cliente_id', 
-        'status', 
-        'tipo',               // <-- LOCAÇÃO OU COBRANÇA
-        'data_evento', 
-        'valor_total', 
-        'observacoes',
-        'cep_entrega', 
-        'endereco_entrega', 
-        'numero_entrega', 
-        'complemento_entrega',
-        'bairro_entrega', 
-        'cidade_entrega', 
-        'estado_entrega'
+    protected $guarded = ['id'];
+
+    // Convertendo as Strings do banco em Datas oficiais
+    protected $casts = [
+        'data_locacao'    => 'date',
+        'data_entrega'    => 'date',
+        'data_evento'     => 'date',
+        'data_devolucao'  => 'date',
+        'assinatura_data' => 'datetime',
     ];
 
     public function cliente(): BelongsTo
@@ -37,8 +31,6 @@ class Pedido extends Model
     {
         return $this->hasMany(PedidoItem::class, 'pedido_id');
     }
-
-    // --- RELACIONAMENTOS DE LOGÍSTICA REVERSA E FINANCEIRO ---
 
     public function pedidoOriginal(): BelongsTo
     {

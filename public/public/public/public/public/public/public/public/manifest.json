@@ -1,0 +1,22 @@
+{
+  "background_color": "#111111",
+  "description": "Mesa Posta ERP - Módulo de Expedição e Logística",
+  "display": "standalone",
+  "icons": [
+    {
+      "src": "https://api.qrserver.com/v1/create-qr-code/?size=192x192&data=MesaPostaERP",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "https://api.qrserver.com/v1/create-qr-code/?size=512x512&data=MesaPostaERP",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ],
+  "name": "Mesa Posta Logística",
+  "orientation": "portrait",
+  "short_name": "MP Log",
+  "start_url": "/dashboard",
+  "theme_color": "#ffc20c"
+}

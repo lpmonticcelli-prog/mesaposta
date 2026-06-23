@@ -3,61 +3,107 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Support\Carbon;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Facades\DB;
+use Carbon\Carbon;
 
 class Produto extends Model
 {
-    /**
-     * Campos permitidos para inserção em massa (Mass Assignment Protection)
-     */
-    protected $fillable = [
-        'nome', 
-        'categoria', 
-        'quantidade_estoque', 
-        'valor_locacao', 
-        'valor_reposicao'
+    protected $table = 'produtos';
+    
+    protected $guarded = ['id'];
+    
+    protected $casts = [
+        'is_kit' => 'boolean',
+        'valor_locacao' => 'decimal:2',
+        'valor_reposicao' => 'decimal:2',
     ];
 
-    /**
-     * RELAÇÃO: Um Produto possui vários Itens em Pedidos/OS
-     */
-    public function itens()
+    public function itensPedido(): HasMany
     {
-        return $this->hasMany(PedidoItem::class);
+        return $this->hasMany(PedidoItem::class, 'produto_id');
     }
 
-    /**
-     * O MOTOR LOGÍSTICO ANTI-FURO (Cálculo Temporal sem Baixa de Estoque)
-     * Delegado 100% ao MySQL (Database Layer) para prevenir estouro de RAM no cPanel (OOM).
-     *
-     * @param string|Carbon $dataInicio
-     * @param string|Carbon $dataFim
-     * @return int Quantidade livre no galpão para o período
-     */
-    public function estoqueLivreNoPeriodo($dataInicio, $dataFim): int
+    public function componentesKit(): HasMany
     {
-        // Sanitização e normalização das datas recebidas
-        $inicio = Carbon::parse($dataInicio)->startOfDay();
-        $fim    = Carbon::parse($dataFim)->endOfDay();
+        return $this->hasMany(ProdutoKit::class, 'kit_id');
+    }
 
-        // Delega a soma da colisão temporal diretamente ao MySQL (Consumo RAM PHP = 0 bytes)
-        $quantidadeOcupada = PedidoItem::where('produto_id', $this->id)
-            ->whereHas('pedido', function ($query) use ($inicio, $fim) {
-                // Apenas status que "trancam" o material no calendário físico
-                $query->whereIn('status', ['confirmado', 'em_separacao', 'entregue'])
-                      ->where('tipo', 'locacao') // <--- BLINDAGEM: Ignora "OS de Cobrança de Avaria" para não abater 2 vezes!
-                      ->where(function ($q) use ($inicio, $fim) {
-                          // Matemática Temporal de Colisão (Overlap Logístico)
-                          // Lógica: Início do Pedido <= Fim Desejado E Fim do Pedido >= Início Desejado
-                          $q->whereRaw("COALESCE(data_entrega, data_evento) <= ?", [$fim])
-                            ->whereRaw("COALESCE(data_devolucao, data_evento) >= ?", [$inicio]);
-                      });
-            })
-            ->sum('quantidade_pedida');
+    public function presenteEmKits(): HasMany
+    {
+        return $this->hasMany(ProdutoKit::class, 'produto_id');
+    }
 
-        // Calcula a sobra garantindo que nunca retorne valor negativo em caso de falha de concorrência
-        $estoqueLivre = $this->quantidade_estoque - $quantidadeOcupada;
+    // =========================================================================
+    // MOTOR MATEMÁTICO DE OVERBOOKING E EXPLOSÃO DE KITS (VERSÃO BLINDADA V2)
+    // =========================================================================
+    public function estoqueLivreNoPeriodo($dataEntrega, $dataDevolucao, $ignorarPedidoId = null)
+    {
+        // Amortecedor de segurança: se as datas estiverem vazias, retorna o físico bruto para peças avulsas
+        if (empty($dataEntrega) || empty($dataDevolucao)) {
+            return $this->is_kit ? 0 : ($this->quantidade_estoque ?? 0);
+        }
 
-        return max(0, (int) $estoqueLivre);
+        try {
+            $entrega = Carbon::parse($dataEntrega)->startOfDay();
+            $devolucao = Carbon::parse($dataDevolucao)->endOfDay();
+        } catch (\Exception $e) { 
+            return 0; 
+        }
+
+        $statusBloqueio = ['confirmado', 'em_separacao', 'entregue'];
+
+        // 1. SE FOR UM KIT: O estoque dinâmico é ditado pelo componente de menor disponibilidade
+        if ($this->is_kit) {
+            $componentes = $this->componentesKit()->with('produtoAvulso')->get();
+            if ($componentes->isEmpty()) return 0;
+
+            $maxKitsPossiveis = PHP_INT_MAX;
+            foreach ($componentes as $comp) {
+                if (!$comp->produtoAvulso) continue;
+                
+                // Recursividade: calcula a sobra real da peça filha no mesmo período consultado
+                $livreFilho = $comp->produtoAvulso->estoqueLivreNoPeriodo($dataEntrega, $dataDevolucao, $ignorarPedidoId);
+                
+                $qtdExigida = $comp->quantidade > 0 ? $comp->quantidade : 1; 
+                $kitsDestaPeca = floor($livreFilho / $qtdExigida);
+                
+                if ($kitsDestaPeca < $maxKitsPossiveis) { 
+                    $maxKitsPossiveis = $kitsDestaPeca; 
+                }
+            }
+            return $maxKitsPossiveis === PHP_INT_MAX ? 0 : $maxKitsPossiveis;
+        }
+
+        // 2. SE FOR PEÇA AVULSA: Estoque Físico (-) Alocações Diretas (-) Alocações Ocultas em Kits
+        $queryAvulsa = DB::table('pedido_itens')
+            ->join('pedidos', 'pedido_itens.pedido_id', '=', 'pedidos.id')
+            ->where('pedido_itens.produto_id', $this->id)
+            ->whereIn('pedidos.status', $statusBloqueio)
+            ->where(function($q) use ($entrega, $devolucao) {
+                $q->where('pedidos.data_entrega', '<=', $devolucao)
+                  ->where('pedidos.data_devolucao', '>=', $entrega);
+            });
+            
+        if ($ignorarPedidoId) $queryAvulsa->where('pedidos.id', '!=', $ignorarPedidoId);
+        $usoDireto = $queryAvulsa->sum('pedido_itens.quantidade_pedida');
+
+        $queryKits = DB::table('pedido_itens')
+            ->join('pedidos', 'pedido_itens.pedido_id', '=', 'pedidos.id')
+            ->join('produto_kits', 'pedido_itens.produto_id', '=', 'produto_kits.kit_id')
+            ->where('produto_kits.produto_id', $this->id)
+            ->whereIn('pedidos.status', $statusBloqueio)
+            ->where(function($q) use ($entrega, $devolucao) {
+                $q->where('pedidos.data_entrega', '<=', $devolucao)
+                  ->where('pedidos.data_devolucao', '>=', $entrega);
+            });
+            
+        if ($ignorarPedidoId) $queryKits->where('pedidos.id', '!=', $ignorarPedidoId);
+        
+        // Proteção estrita do banco: COALESCE garante retorno zero em vez de nulo caso não haja correspondências
+        $usoEmKits = (int) $queryKits->selectRaw('COALESCE(SUM(pedido_itens.quantidade_pedida * produto_kits.quantidade), 0) as total')->value('total');
+
+        $totalLivre = ($this->quantidade_estoque ?? 0) - ($usoDireto + $usoEmKits);
+        return $totalLivre > 0 ? $totalLivre : 0;
     }
 }

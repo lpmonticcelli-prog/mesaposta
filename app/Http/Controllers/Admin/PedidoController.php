@@ -7,296 +7,339 @@ use App\Models\Pedido;
 use App\Models\PedidoItem;
 use App\Models\Produto;
 use App\Models\Cliente;
-use App\Models\Lancamento;
+use App\Models\ContaReceber;
 use Illuminate\Http\Request;
-use Illuminate\View\View;
-use Illuminate\Support\Facades\DB;
-use Barryvdh\DomPDF\Facade\Pdf;
 use SimpleSoftwareIO\QrCode\Facades\QrCode;
+use Carbon\Carbon;
 
 class PedidoController extends Controller
 {
-    /**
-     * Exibe a listagem de ordens de serviço aprovadas ou em andamento
-     */
-    public function index(Request $request): View
+    public function buscaInteligente(Request $request)
     {
-        $pedidos = Pedido::with('cliente')
-            ->where('status', '!=', 'orcamento')
-            ->when($request->status, function ($query, $status) {
-                return $query->where('status', $status);
-            })
-            ->orderBy('data_evento', 'asc')
-            ->paginate(15);
+        $dtE = $request->dt_entrega;
+        $dtD = $request->dt_devolucao;
+        $busca = $request->q;
+        $pedidoId = $request->pedido_id;
 
-        $titulo = 'Pedidos e OS (Aprovadas)';
-        return view('admin.pedidos.index', compact('pedidos', 'titulo'));
+        $produtos = Produto::where('nome', 'like', "%{$busca}%")->take(20)->get()->map(function($p) use ($dtE, $dtD, $pedidoId) {
+            $livre = $p->estoqueLivreNoPeriodo($dtE, $dtD, $pedidoId);
+            return [
+                'id' => $p->id,
+                'nome' => mb_strtoupper($p->nome),
+                'is_kit' => $p->is_kit,
+                'valor_locacao' => number_format($p->valor_locacao, 2, ',', ''),
+                'estoque_livre' => $livre,
+                'text' => mb_strtoupper($p->nome) . " (Livre: {$livre}x) - R$ " . number_format($p->valor_locacao, 2, ',', '.')
+            ];
+        });
+        return response()->json($produtos);
     }
 
-    /**
-     * Exibe a listagem de orçamentos aguardando aprovação logística
-     */
-    public function orcamentos(Request $request): View
+    public function index(Request $request)
     {
-        $pedidos = Pedido::with('cliente')
-            ->where('status', 'orcamento')
-            ->orderBy('created_at', 'desc')
-            ->paginate(15);
+        $query = Pedido::with('cliente')->where('status', '!=', 'orcamento');
+        
+        // =========================================================================
+        // 📊 MOTOR DE FILTRO AVANÇADO (Separa Locação vs Multa)
+        // =========================================================================
+        if ($request->filtro === 'avarias') {
+            // Aba de Laudos: Mostra apenas as OS geradas por avaria
+            $query->where('tipo', 'cobranca');
+        } else {
+            // Aba Padrão: Mostra apenas as Locações normais
+            $query->where(function($q) {
+                $q->where('tipo', 'locacao')->orWhereNull('tipo');
+            });
+        }
 
-        $titulo = 'Orçamentos (Aguardando Aprovação)';
-        return view('admin.pedidos.index', compact('pedidos', 'titulo'));
+        if ($request->filled('busca')) {
+            $b = $request->busca;
+            $query->where(function($q) use ($b) {
+                $q->where('id', $b)->orWhereHas('cliente', fn($c) => $c->where('nome', 'like', "%{$b}%"));
+            });
+        }
+        if ($request->filled('data_inicio')) $query->whereDate('data_entrega', '>=', $request->data_inicio);
+        if ($request->filled('data_fim')) $query->whereDate('data_devolucao', '<=', $request->data_fim);
+        if ($request->filled('status')) $query->where('status', $request->status);
+
+        // Se for aba de avarias, ordena pelos mais recentes primeiro
+        if ($request->filtro === 'avarias') {
+            $pedidos = $query->orderBy('created_at', 'desc')->paginate(15)->withQueryString();
+        } else {
+            $pedidos = $query->orderBy('data_entrega', 'desc')->paginate(15)->withQueryString();
+        }
+        
+        return view('admin.pedidos.index', compact('pedidos'));
     }
 
-    /**
-     * Tela de abertura manual de orçamento no balcão
-     */
-    public function create(): View
+    public function orcamentos(Request $request)
     {
-        return view('admin.pedidos.create');
+        $query = Pedido::with('cliente')->where('status', 'orcamento');
+        if ($request->filled('busca')) {
+            $b = $request->busca;
+            $query->where(function($q) use ($b) {
+                $q->where('id', $b)->orWhereHas('cliente', fn($c) => $c->where('nome', 'like', "%{$b}%"));
+            });
+        }
+        $pedidos = $query->latest()->paginate(15)->withQueryString();
+        return view('admin.pedidos.orcamentos', compact('pedidos'));
     }
 
-    /**
-     * Registra ou atualiza um cliente e abre a OS inicial de forma atômica
-     */
+    public function create() { return view('admin.pedidos.create'); }
+
+    // =========================================================================
+    // 🛡️ CRIAÇÃO BLINDADA: Busca em Cascata para evitar clientes duplicados
+    // =========================================================================
     public function store(Request $request)
     {
-        $validated = $request->validate([
-            'tipo_pessoa'      => 'required|in:PF,PJ',
-            'cpf_cnpj'         => 'nullable|string|max:20',
-            'rg_ie'            => 'nullable|string|max:30',
-            'cliente_nome'     => 'required|string|max:100',
-            'cliente_telefone' => 'required|string|max:20',
-            'email'            => 'nullable|email|max:100',
-            'cep'              => 'nullable|string|max:10',
-            'endereco'         => 'nullable|string|max:255',
-            'numero'           => 'nullable|string|max:20',
-            'complemento'      => 'nullable|string|max:255',
-            'bairro'           => 'nullable|string|max:100',
-            'cidade'           => 'nullable|string|max:100',
-            'estado'           => 'nullable|string|max:2',
-            'data_evento'      => 'required|date',
-            'status'           => 'required|in:orcamento,confirmado',
-            'observacoes'      => 'nullable|string|max:1000',
-            'cep_entrega'         => 'nullable|string|max:10',
-            'endereco_entrega'    => 'nullable|string|max:255',
-            'numero_entrega'      => 'nullable|string|max:20',
-            'complemento_entrega' => 'nullable|string|max:255',
-            'bairro_entrega'      => 'nullable|string|max:100',
-            'cidade_entrega'      => 'nullable|string|max:100',
-            'estado_entrega'      => 'nullable|string|max:2',
-        ]);
-
-        DB::beginTransaction();
         try {
-            // Sanitização estrita contra Stored XSS na base de dados do ERP
-            $cliente = Cliente::updateOrCreate(
-                ['telefone' => $validated['cliente_telefone']], 
-                [
-                    'nome'        => strip_tags($validated['cliente_nome']),
-                    'tipo_pessoa' => $validated['tipo_pessoa'],
-                    'cpf_cnpj'    => $validated['cpf_cnpj'],
-                    'rg_ie'       => $validated['rg_ie'],
-                    'email'       => $validated['email'],
-                    'cep'         => $validated['cep'],
-                    'endereco'    => $validated['endereco'],
-                    'numero'      => $validated['numero'],
-                    'complemento' => $validated['complemento'],
-                    'bairro'      => $validated['bairro'],
-                    'cidade'      => $validated['cidade'],
-                    'estado'      => $validated['estado'],
-                ]
-            );
+            $nomeLimpo = mb_strtoupper(trim($request->cliente_nome));
+            $telefoneLimpo = preg_replace('/[^0-9]/', '', $request->cliente_telefone);
+            $cpfCnpjLimpo = preg_replace('/[^0-9]/', '', $request->cpf_cnpj);
 
-            $pedido = Pedido::create([
-                'cliente_id'          => $cliente->id,
-                'status'              => $validated['status'],
-                'tipo'                => 'locacao',
-                'data_evento'         => $validated['data_evento'],
-                'valor_total'         => 0.00,
-                'observacoes'         => strip_tags($validated['observacoes']),
-                'cep_entrega'         => $validated['cep_entrega'],
-                'endereco_entrega'    => $validated['endereco_entrega'],
-                'numero_entrega'      => $validated['numero_entrega'],
-                'complemento_entrega' => $validated['complemento_entrega'],
-                'bairro_entrega'      => $validated['bairro_entrega'],
-                'cidade_entrega'      => $validated['cidade_entrega'],
-                'estado_entrega'      => $validated['estado_entrega'],
-            ]);
-
-            // Se for gerado como confirmado, cria o registro inicial no cofre financeiro
-            if ($validated['status'] === 'confirmado') {
-                Lancamento::create([
-                    'descricao' => "Receita Contrato OS #" . str_pad($pedido->id, 5, '0', STR_PAD_LEFT),
-                    'tipo' => 'receita',
-                    'valor' => 0.00,
-                    'data_vencimento' => \Carbon\Carbon::parse($pedido->data_evento)->toDateString(),
-                    'status' => 'pendente',
-                    'pedido_id' => $pedido->id
-                ]);
+            $cliente = null;
+            
+            if (!empty($cpfCnpjLimpo)) {
+                $cliente = Cliente::where('cpf_cnpj', $cpfCnpjLimpo)->first();
             }
 
-            DB::commit();
-            return redirect()->route('admin.pedidos.show', $pedido->id)
-                             ->with('success', 'Abertura realizada com sucesso! Monte os materiais na OS.');
+            if (!$cliente) {
+                $cliente = Cliente::where('nome', $nomeLimpo)
+                    ->orWhere(function($q) use ($telefoneLimpo) {
+                        if (!empty($telefoneLimpo)) {
+                            $q->where('telefone', 'like', "%{$telefoneLimpo}%");
+                        }
+                    })->first();
+            }
+
+            if (!$cliente) {
+                $cliente = Cliente::create([
+                    'nome' => $nomeLimpo,
+                    'tipo_pessoa' => $request->tipo_pessoa ?? 'PF',
+                    'cpf_cnpj' => $cpfCnpjLimpo,
+                    'rg_ie' => $request->rg_ie,
+                    'telefone' => $request->cliente_telefone,
+                    'email' => $request->email,
+                    'cep' => preg_replace('/[^0-9]/', '', $request->cep),
+                    'endereco' => mb_strtoupper($request->endereco),
+                    'numero' => $request->numero,
+                    'complemento' => mb_strtoupper($request->complemento),
+                    'bairro' => mb_strtoupper($request->bairro),
+                    'cidade' => mb_strtoupper($request->cidade), 
+                    'estado' => mb_strtoupper($request->estado),
+                ]);
+            } else {
+                if(empty($cliente->telefone) && !empty($request->cliente_telefone)){
+                    $cliente->update(['telefone' => $request->cliente_telefone]);
+                }
+            }
+
+            $pedido = Pedido::create([
+                'cliente_id' => $cliente->id, 'status' => $request->status ?? 'orcamento',
+                'tipo' => 'locacao', // Garante que a criação manual sempre seja locação
+                'data_locacao' => $request->data_locacao ?: now(), 'data_entrega' => $request->data_entrega,
+                'data_evento' => $request->data_evento, 'data_devolucao' => $request->data_devolucao,
+                'forma_pagamento' => mb_strtoupper($request->forma_pagamento ?? 'A COMBINAR'),
+                'cep_entrega' => preg_replace('/[^0-9]/', '', $request->cep_entrega),
+                'endereco_entrega' => mb_strtoupper($request->endereco_entrega), 'numero_entrega' => $request->numero_entrega,
+                'complemento_entrega' => mb_strtoupper($request->complemento_entrega), 'bairro_entrega' => mb_strtoupper($request->bairro_entrega),
+                'cidade_entrega' => mb_strtoupper($request->cidade_entrega), 'estado_entrega' => mb_strtoupper($request->estado_entrega),
+                'observacoes' => $request->observacoes, 'valor_total' => 0, 'token_assinatura' => \Illuminate\Support\Str::random(40)
+            ]);
+
+            return redirect()->route('admin.pedidos.show', $pedido->id)->with('success', 'Contrato Base gerado! Adicione os materiais.');
         } catch (\Exception $e) {
-            DB::rollBack();
-            return back()->with('error', 'Erro interno na criação: ' . $e->getMessage());
+            return back()->with('error', 'ERRO AO GERAR CONTRATO: ' . $e->getMessage());
         }
     }
 
-    /**
-     * Exibe o cockpit de montagem da Ordem de Serviço
-     */
-    public function show(Pedido $pedido): View
+    public function show(Pedido $pedido)
     {
         $pedido->load(['cliente', 'itens.produto']);
         $produtos = Produto::orderBy('nome')->get();
         return view('admin.pedidos.show', compact('pedido', 'produtos'));
     }
 
-    /**
-     * Aloca materiais na OS aplicando travas concorrentes rígidas por linha de registro
-     */
     public function adicionarItem(Request $request, Pedido $pedido)
     {
-        $request->validate([
-            'produto_id' => 'required|exists:produtos,id',
-            'quantidade' => 'required|integer|min:1'
-        ]);
-
-        DB::beginTransaction();
         try {
-            // LOCK EXCLUSIVO DE REGISTRO NO ACERVO CONTRA RACE CONDITION
-            $produto = Produto::where('id', $request->produto_id)->lockForUpdate()->firstOrFail();
+            $produto = Produto::findOrFail($request->produto_id);
+            $qtd = $request->quantidade ?: 1;
+            $descontoForm = $request->desconto ? (float) str_replace(['R$', '.', ','], ['', '', '.'], $request->desconto) : 0;
 
-            $dataInicio = $pedido->data_entrega ?? $pedido->data_evento;
-            $dataFim = $pedido->data_devolucao ?? $pedido->data_evento;
-            
-            $estoqueLivre = $produto->estoqueLivreNoPeriodo($dataInicio, $dataFim);
-            $quantidadeAlocar = (int) ($request->whitespace_fix_qtd ?? $request->quantidade);
-
-            // COMPILAÇÃO CORRIGIDA: Parênteses forçam a precedência matemática correta da validação
-            if ($quantidadeAlocar > $estoqueLivre) {
-                DB::rollBack();
-                return back()->with('error', "Restrição Logística: O item '{$produto->nome}' possui apenas {$estoqueLivre} unidades livres.");
-            }
-
-            PedidoItem::create([
-                'pedido_id'         => $pedido->id,
-                'produto_id'        => $produto->id,
-                'quantidade_pedida' => $quantidadeAlocar,
-                'valor_unitario'    => $produto->valor_locacao,
-            ]);
-
-            $pedido->increment('valor_total', ($produto->valor_locacao * $quantidadeAlocar));
-
-            // Sincroniza dinamicamente o valor real se a OS já estiver ativa na esteira financeira
-            Lancamento::where('pedido_id', $pedido->id)
-                ->where('tipo', 'receita')
-                ->increment('valor', ($produto->valor_locacao * $quantidadeAlocar));
-
-            DB::commit();
-            return back()->with('success', 'Material alocado com sucesso.');
-        } catch (\Exception $e) {
-            DB::rollBack();
-            return back()->with('error', 'Falha ao alocar material: ' . $e->getMessage());
-        }
-    }
-
-    /**
-     * Remove um item da OS e estorna o saldo financeiro associado
-     */
-    public function removerItem(Pedido $pedido, PedidoItem $item)
-    {
-        DB::beginTransaction();
-        try {
-            $valorAbater = $item->valor_unitario * $item->quantidade_pedida;
-            $pedido->decrement('valor_total', $valorAbater);
-            
-            Lancamento::where('pedido_id', $pedido->id)->where('tipo', 'receita')->decrement('valor', $valorAbater);
-            
-            $item->delete();
-            DB::commit();
-            return back()->with('success', 'Material removido e valores recalculados.');
-        } catch (\Exception $e) {
-            DB::rollBack();
-            return back()->with('error', 'Erro interno ao remover item do acervo.');
-        }
-    }
-
-    /**
-     * Aprova o orçamento e executa o bloqueio definitivo das peças sob transação estrita
-     */
-    public function ComicAprovar(Pedido $pedido)
-    {
-        if ($pedido->itens()->count() === 0) {
-            return back()->with('error', 'Restrição: Impossível aprovar contrato sem materiais alocados.');
-        }
-
-        if ($pedido->status === 'orcamento') {
-            DB::beginTransaction();
-            try {
-                $dataInicio = $pedido->data_entrega ?? $pedido->data_evento;
-                $dataFim = $pedido->data_devolucao ?? $pedido->data_evento;
-
-                // Bloqueia em lote os produtos do pedido na tabela para recalcular o saldo real
-                foreach ($pedido->itens as $item) {
-                    $prodLock = Produto::where('id', $item->produto_id)->lockForUpdate()->first();
-                    $livre = $prodLock->estoqueLivreNoPeriodo($dataInicio, $dataFim);
-                    
-                    if ($item->quantidade_pedida > $livre) {
-                        DB::rollBack();
-                        return back()->with('error', "Conflito Logístico de Última Hora: O acervo não possui unidades suficientes de '{$prodLock->nome}' (Disponível: {$livre}).");
-                    }
+            if ($pedido->status !== 'orcamento') {
+                $livre = $produto->estoqueLivreNoPeriodo($pedido->data_entrega, $pedido->data_devolucao, $pedido->id);
+                if ($qtd > $livre) {
+                    $erro = "OVERBOOKING BLOQUEADO! Restam apenas {$livre}x unidades livres.";
+                    if($request->ajax()) return response()->json(['success' => false, 'message' => $erro], 400);
+                    return back()->with('error', $erro);
                 }
+            }
 
-                $pedido->update(['status' => 'confirmado']);
+            $itemExist = $pedido->itens()->where('produto_id', $produto->id)->first();
+            if ($itemExist) {
+                $itemExist->quantidade_pedida += $qtd;
+                $itemExist->desconto += $descontoForm;
+                $itemExist->save();
+            } else {
+                PedidoItem::create([
+                    'pedido_id' => $pedido->id, 'produto_id' => $produto->id,
+                    'quantidade_pedida' => $qtd, 'valor_unitario' => $produto->valor_locacao ?: 0,
+                    'valor_reposicao' => $produto->valor_reposicao ?: 0,
+                    'desconto' => $descontoForm
+                ]);
+            }
+
+            $this->atualizarTotal($pedido);
+            if($request->ajax()) return response()->json(['success' => true]);
+            return back()->with('success', 'Material alocado no contrato.');
+
+        } catch (\Exception $e) {
+            if($request->ajax()) return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
+            return back()->with('error', 'ERRO AO ADICIONAR ITEM: ' . $e->getMessage());
+        }
+    }
+
+    public function removerItem(Request $request, Pedido $pedido, PedidoItem $item)
+    {
+        $item->delete();
+        $this->atualizarTotal($pedido);
+        if($request->ajax()) return response()->json(['success' => true]);
+        return back()->with('success', 'Item removido.');
+    }
+
+    private function atualizarTotal(Pedido $pedido)
+    {
+        $total = $pedido->itens()->get()->sum('subtotal');
+        $pedido->update(['valor_total' => max(0, $total)]);
+        if (!in_array($pedido->status, ['orcamento', 'cancelado'])) {
+            ContaReceber::where('pedido_id', $pedido->id)->where('status', 'pendente')->update(['valor' => $pedido->valor_total]);
+        }
+    }
+
+    public function aprovar(Pedido $pedido)
+    {
+        try {
+            if (empty($pedido->data_entrega) || empty($pedido->data_devolucao)) {
+                return back()->with('error', '⚠️ BLOQUEIO: Este Orçamento é antigo e não possui Data de Entrega ou Devolução.');
+            }
+
+            foreach ($pedido->itens as $item) {
+                if (!$item->produto) return back()->with('error', '⚠️ BLOQUEIO: Há um item excluído do Acervo neste carrinho.');
                 
-                // Consolida o fluxo de caixa macro de entradas do ERP
-                Lancamento::updateOrCreate(
-                    ['pedido_id' => $pedido->id, 'tipo' => 'receita'],
-                    [
-                        'descricao' => "Receita Contrato OS #" . str_pad($pedido->id, 5, '0', STR_PAD_LEFT),
-                        'valor' => $pedido->valor_total,
-                        'data_vencimento' => \Carbon\Carbon::parse($pedido->data_evento)->toDateString(),
-                        'status' => 'pendente'
-                    ]
-                );
+                $livre = $item->produto->estoqueLivreNoPeriodo($pedido->data_entrega, $pedido->data_devolucao, $pedido->id);
+                if ($item->quantidade_pedida > $livre) {
+                    return back()->with('error', "🚨 FALHA DE ESTOQUE: A peça '{$item->produto->nome}' só tem {$livre} livres.");
+                }
+            }
 
-                DB::commit();
-                return back()->with('success', 'CONTRATO APROVADO! O estoque foi bloqueado com segurança absoluta.');
-            } catch (\Exception $e) {
-                DB::rollBack();
-                return back()->with('error', 'Erro crítico na aprovação concorrente: ' . $e->getMessage());
+            $pedido->update(['status' => 'confirmado']);
+            
+            $dataVenc = $pedido->data_locacao ? $pedido->data_locacao->format('Y-m-d') : Carbon::now()->format('Y-m-d');
+            
+            ContaReceber::firstOrCreate(
+                ['pedido_id' => $pedido->id],
+                [
+                    'cliente_id' => $pedido->cliente_id,
+                    'descricao' => 'OS #' . str_pad($pedido->id, 5, '0', STR_PAD_LEFT),
+                    'valor' => $pedido->valor_total ?: 0,
+                    'data_vencimento' => $dataVenc,
+                    'status' => 'pendente'
+                ]
+            );
+
+            return back()->with('success', 'O.S. Aprovada! O estoque físico foi bloqueado com sucesso.');
+
+        } catch (\Exception $e) {
+            return back()->with('error', '❌ ERRO CRÍTICO DO SISTEMA (APROVAÇÃO): ' . $e->getMessage() . ' | Linha: ' . $e->getLine());
+        }
+    }
+
+    public function cancelar(Pedido $pedido)
+    {
+        try {
+            $pedido->update(['status' => 'cancelado']);
+            ContaReceber::where('pedido_id', $pedido->id)->where('status', 'pendente')->delete();
+            return back()->with('success', 'O.S. Cancelada. Os materiais voltaram para a prateleira livre.');
+        } catch (\Exception $e) {
+            return back()->with('error', 'ERRO AO CANCELAR: ' . $e->getMessage());
+        }
+    }
+
+    // =========================================================================
+    // 🖨️ MÁGICA DA IMPRESSÃO: Geração Simultânea de QR Code Logístico e PIX
+    // =========================================================================
+    public function imprimir(Pedido $pedido, Request $request)
+    {
+        $pedido->load(['cliente', 'itens.produto']);
+        $via = $request->query('via', 'cliente'); 
+        
+        $pixPayload = null;
+        $qrCodePix = null;
+        $qrCodeLogistica = null;
+
+        // 1. QR CODE LOGÍSTICO (Gerado para a Via Expedição)
+        $urlLogistica = route('estoque.conferencia', $pedido->id);
+        $qrCodeLogistica = base64_encode(QrCode::format('svg')->margin(1)->size(150)->generate($urlLogistica));
+
+        // 2. QR CODE DO PIX (Gerado apenas para a Via do Cliente e se houver cobrança)
+        if ($via === 'cliente' && $pedido->valor_total > 0) {
+            $settingsPath = storage_path('app/settings.json');
+            $settings = file_exists($settingsPath) ? json_decode(file_get_contents($settingsPath), true) : [];
+
+            if (!empty($settings['pix_chave'])) {
+                // Aciona o Motor Matemático do Banco Central
+                $pixPayload = \App\Services\PixService::gerarCopiaECola(
+                    $settings['pix_chave'],
+                    $settings['pix_nome'] ?? 'MESA POSTA',
+                    $settings['pix_cidade'] ?? 'ITATIBA',
+                    $pedido->valor_total,
+                    '***' // <-- GARANTIA DE LEITURA DO PIX: O txid deve ser ***
+                );
+                
+                // Desenha a imagem base64 do PIX
+                $qrCodePix = base64_encode(QrCode::format('svg')->margin(1)->size(150)->generate($pixPayload));
             }
         }
 
-        return back();
+        // Envia as variáveis para o layout final do PDF
+        return view('admin.pedidos.pdf', compact('pedido', 'via', 'qrCodeLogistica', 'qrCodePix', 'pixPayload'));
     }
 
-    /**
-     * Gera o arquivo PDF otimizado para baixa alocação de memória RAM no cPanel
-     */
-    public function imprimir(Pedido $pedido)
+    // =========================================================================
+    // 🌐 VISUALIZAÇÃO PÚBLICA (Com Verificação de Assinatura Criptográfica)
+    // =========================================================================
+    public function imprimirPublico(Pedido $pedido, Request $request)
     {
-        // Força teto de memória isolado para evitar estouro dos 256MB da HostGator durante o processo
-        ini_set('memory_limit', '256M'); 
+        // 1. TRAVA DE SEGURANÇA: Verifica se a assinatura matemática é válida
+        if (! $request->hasValidSignature()) {
+            abort(403, 'ACESSO NEGADO: Este link é inválido, foi adulterado ou já expirou. Solicite um novo link à empresa.');
+        }
 
-        // Carregamento prévio estrito (Anti N+1 queries)
         $pedido->load(['cliente', 'itens.produto']);
+        $via = 'cliente'; // Força sempre a visão do cliente
         
-        $urlConferencia = url('/estoque/conferencia?os=' . $pedido->id);
-        $qrCode = base64_encode(QrCode::format('svg')->size(150)->generate($urlConferencia));
+        $pixPayload = null;
+        $qrCodePix = null;
+        $qrCodeLogistica = null;
 
-        // Desativa chamadas remotas HTTP que geram timeout e estouro de buffer no Apache cPanel
-        $pdf = Pdf::setOptions([
-            'isHtml5ParserEnabled' => true,
-            'isRemoteEnabled' => false,
-            'defaultFont' => 'sans-serif'
-        ])->loadView('admin.pedidos.pdf', compact('pedido', 'qrCode'));
-        
-        $nomeArquivo = "OS-" . str_pad($pedido->id, 5, '0', STR_PAD_LEFT) . ".pdf";
+        // 2. Geração do PIX (Igual à via normal)
+        if ($pedido->valor_total > 0) {
+            $settingsPath = storage_path('app/settings.json');
+            $settings = file_exists($settingsPath) ? json_decode(file_get_contents($settingsPath), true) : [];
 
-        return $pdf->setPaper('a4')->stream($nomeArquivo);
+            if (!empty($settings['pix_chave'])) {
+                $pixPayload = \App\Services\PixService::gerarCopiaECola(
+                    $settings['pix_chave'],
+                    $settings['pix_nome'] ?? 'MESA POSTA',
+                    $settings['pix_cidade'] ?? 'ITATIBA',
+                    $pedido->valor_total,
+                    '***'
+                );
+                $qrCodePix = base64_encode(QrCode::format('svg')->margin(1)->size(150)->generate($pixPayload));
+            }
+        }
+
+        return view('admin.pedidos.pdf', compact('pedido', 'via', 'qrCodeLogistica', 'qrCodePix', 'pixPayload'));
     }
 }

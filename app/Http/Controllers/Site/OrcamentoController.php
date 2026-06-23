@@ -51,22 +51,40 @@ class OrcamentoController extends Controller implements HasMiddleware
         DB::beginTransaction();
         try {
             // Removemos tags HTML para impedir que um atacante injete scripts no Painel do ERP (Stored XSS)
-            $nomeLimpo = strip_tags($validated['name']);
+            $nomeLimpo = mb_strtoupper(trim(strip_tags($validated['name'])));
+            $telefoneLimpo = preg_replace('/[^0-9]/', '', $validated['telefone']);
             $mensagemLimpa = strip_tags($validated['message']);
             
-            // Busca o cliente pelo telefone ou cria um novo se não existir
-            $cliente = Cliente::firstOrCreate(
-                ['telefone' => $validated['telefone']],
-                ['nome'     => $nomeLimpo]
-            );
+            // 4. CRM INTELIGENTE: Busca em Cascata para evitar duplicidades
+            $cliente = Cliente::where('nome', $nomeLimpo)
+                ->orWhere(function($q) use ($telefoneLimpo) {
+                    if (!empty($telefoneLimpo)) {
+                        $q->where('telefone', 'like', "%{$telefoneLimpo}%");
+                    }
+                })->first();
 
-            // Cria a OS inicial na Mesa de Operações
+            // Se não encontrou, cria um novo
+            if (!$cliente) {
+                $cliente = Cliente::create([
+                    'nome'     => $nomeLimpo,
+                    'telefone' => $telefoneLimpo
+                ]);
+            } else {
+                // Se achou o cliente, mas estava sem telefone, atualiza o cadastro dele silenciosamente
+                if (empty($cliente->telefone) && !empty($telefoneLimpo)) {
+                    $cliente->update(['telefone' => $telefoneLimpo]);
+                }
+            }
+
+            // 5. CRIA A OS INICIAL NA MESA DE OPERAÇÕES
             Pedido::create([
-                'cliente_id'  => $cliente->id,
-                'status'      => 'orcamento',
-                'data_evento' => $validated['data_evento'],
-                'valor_total' => 0.00,
-                'observacoes' => $mensagemLimpa
+                'cliente_id'       => $cliente->id,
+                'status'           => 'orcamento',
+                'data_evento'      => $validated['data_evento'],
+                'data_locacao'     => now(),
+                'valor_total'      => 0.00,
+                'observacoes'      => "SOLICITAÇÃO VIA SITE:\n" . $mensagemLimpa,
+                'token_assinatura' => \Illuminate\Support\Str::random(40)
             ]);
 
             DB::commit();
